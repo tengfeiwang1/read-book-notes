@@ -262,6 +262,64 @@ ByteBuf的discardReadBytes操作效果如下：
    可写空间段是尚未被使用可以填充的空闲空间，任何以write开头的操作都会从writerIndex开始向空闲空间写入字节，操作完成之后writerIndex增加了写入的字节数长度。
 6. clear操作
 
-并不会清空缓冲区内容本身，例如填充为NULL(0x00).它主要用来操作位置指针。
-7. 
+正如JDK ByteBuffer的clear操作,它并不会清空缓冲区内容本身，例如填充为NULL(0x00).它主要用来操作位置指针。
+7. Mark和Rest
+  对于JDK的ByteBuffer，调用mark操作会将当前的位置指针备份到mark变量中，当调用rest操作之后，重新将指针的当前位置恢复为备份在mark中的值。
+  
+  Netty的ByteBuf也有类似的rest和mark接口，因为ByteBuf有读索引和写索引，因此，它总共有4个相关方法：
+markReaderIndex：将当前的readerIndex备份到markedReaderIndex中；
+restReaderIndex：将当前的readerIndex设置为markedReaderIndex中；
+markWriterIndex：将当前的writerIndex备份到markedWriterIndex中；
+restReaderIndex：将当前的writerIndex设置为markedWriterIndex中；
+
+8. 查找操作
+   ByteBuf提供了多种查找方法：P307
+9.  Derived buffers
+    类似于数据库的试图，ByteBuf提供了多个接口用于创建某个ByteBuf的视图或者复制ByteBuf；P308
+10. 转换成标准的ByteBuffer
+    当通过NIO的SocketChannel进行网络读写时，操作的对象是JDK标准的java.nio.ByteBuffer,由于Netty统一使用ByteBuf替代JDK原生的java.nio.ByteBuffer，索引必须从接口层面支持两者的相互转换。
+    将ByteBuf转换成java.nio.ByteBuffer的方法有两个：
+    (1) ByteBuffer nioBuffer():将当前ByteBuf可读的缓冲区转换成ByteBuffer，两者共享同一个缓冲区内容引用，对ByteBuffer的读写操作并不会修改原ByteBuf的读写索引。需要指出的是，返回后的ByteBuffer无法感知原ButeBuf的动态扩容操作。
+    (2) ByteBuffer nioBuffer(int index,int length)
+11. 随机读写
+    ByteBuf随机写操作不支持动态扩展缓冲区
+
 ## 15.2 ByteBuf源码分析
+### 15.2.1 ByteBuf的主要类继承关系
+![ByteBuf主要功能类继承关系](./nettypic/ByteBuf主要功能类继承关系.JPG)
+从内存分配角度看，ByteBuf可以分为两类：
+（1） 堆内存（HeapByteBuf）字节缓冲区
+（2） 直接内存（DirectByteBuf）字节缓冲区：
+经验表明，ByteBuf的最佳实践是在I/O通信线程的读写缓冲区使用DirectByteBuf，后端业务消息的编解码模块使用HeapByteBuf，这样组合可以达到性能最优。
+
+### 15.2.2 AbstractByteBuf源码分析
+
+
+3. 写操作簇
+>> Netty的ByteBuffer可以动态扩展，为了保证安全性，允许使用者指定最大的容量，在容量范围内，可以先分配个较小的初始容量，后面不够再用动态扩展，这样可以达到功能和性能的最优组合。
+
+P316
+
+扩展采用先倍增后步进的原因 ：当内存较小的情况下，倍增操作并不会带来太多的内存浪费，例如64字节-->128字节-->256字节，这样的内存扩张方式对于大多数应用系统是可以接受的。但是，当内存增长到一定阈值后，再进行倍增就可能会带来额外的内存浪费，例如10M，采用倍增后变为20M，很有可能系统只需要12M，扩张到20M后会带来8M的内存浪费。
+
+5. 重用缓冲区-disCardReadBytes
+
+### 15.2.3 AbstractReferenceCountedByteBuf源码分析
+### 15.2.4 UnpooledHeapByteBuf源码分析
+  UnpooledHeapByteBuf是基于堆内存进行内存分配的字节缓冲区，它没有基于对象池技术实现，这就意味着每次I/O的读写都会创建一个新的UnpooledHeapByteBuf，频繁的进行大块内存的分配和回收对性能会造成一定影响，但是相比对外内存的申请和释放，它的成本还是会低一些。
+### 15.2.5 PooledByteBuf内存池原理分析
+1. PoolArena
+2. PoolChunk
+   Chunk主要用来组织和管理多个Page的内存分配和释放。在Netty中，Chunk中的Page被构建成一颗二叉树。（对树的遍历采用深度优先的算法）
+3. PoolSubPage
+4. 内存回收策略
+   无论是Chunkh还是Page，都通过状态位来标识内存是否可用，不同之处是Chunk通过在二叉树上对节点进行标识实现，Page是通过维护块的使用状态标识来实现。
+
+### 15.2.6 PooledDirectByteBuf源码分析
+  PooledDirectByteBuf基于内存池实现，与UnPooledDirectByteBuf的唯一不同就是缓冲区的分配是销毁策略不同，其他功能都是等同的，也就是说，**两者唯一的不同就是内存分配策略不同。**
+
+## 15.3 ByteBuf相关的辅助类功能介绍
+### 15.3.4 ByteBufUitl
+  ByteBufUitl是一个非常有用的工具类，它提供了一系列静态方法 用于操作ByteBuf对象。
+
+  # 第16章 Channel和Unsafe
