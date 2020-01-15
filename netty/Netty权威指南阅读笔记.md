@@ -322,4 +322,38 @@ P316
 ### 15.3.4 ByteBufUitl
   ByteBufUitl是一个非常有用的工具类，它提供了一系列静态方法 用于操作ByteBuf对象。
 
-  # 第16章 Channel和Unsafe
+# 第16章 Channel和Unsafe
+## 16.1 Channel 功能说明
+  io.netty.channel.Channel是Netty网络操作抽象类，它聚合了一组功能，包括但不限于网络的读、写，客户端发起连接、主动关闭连接，链路关闭，获取通信双方的网络地址等。
+
+### 16.1.1 Channel的工作原理
+Channel是Netty抽象出来的网络I/O读写相关的接口，为什么不使用JDK NIO原生的Channel而另起炉灶的原因：
+（1） JDK的SocketChannel和ServerSocketChannel没有统一的Channel接口供业务开发者使用，对于用户而言，没有统一的操作视图，使用起来不方便；
+（2） JDK的SocketChannel和ServerSocketChannel的主要职责就是网络I/O操作，由于它们是SPI类接口，由具体的虚拟机厂家来提供，所以通过继承SPI功能类来扩展其功能的难度很大；直接实现ServerSocketChannel和SocketChannel抽象类，其工作量和重新开发一个新的Channel功能类差不多；
+（3） Netty的Channel需要能够跟Netty的整体架构融合在一起，例如I/O模块、基于ChannelPipline的定制模块，以及基于元数据描述配置化的TCP参数等；
+（4）自定义的Channel，功能实现更加灵活。
+
+Netty的Channel设计理念：
+（1）在Channel接口层，采用Facade模式进行统一封装，将网络I/O操作、网络I/O相关联的其它操作封装起来，统一对外提供；
+（2） Channel接口的定义尽量大而全，为SocketChannel和ServerSocketChannel提供统一的视图，由不同子类实现不同的功能，公共功能在抽象父类中实现，最大程度上实现功能和接口的重用；
+（3） 具体实现采用聚合而非包含的方式，将相关的功能类聚合在Channel中，由Channel统一负责分配和调度，功能实现更加灵活。
+
+
+
+### 16.1.2 Channel的功能介绍
+P342
+1. 网络I/O操作
+
+2. 其它常用的API功能说明
+
+## 16.2 Channel源码分析
+选择最重要的两个Channel-io.netty.channel.socket.nio.NioServerSocketChannel和io.netty.channel.socket.nio.NioSocketChannel进行重点分析。
+### 16.2.1 Channel的主要继承关系类图
+### 16.2.2 AbstractChannel源码分析
+### 16.2.3 AbstractNioChannel源码分析
+### 16.2.4 AbstractNioByteChannel源码分析
+### 16.2.4 AbstractNioMessageChannel源码分析
+### 16.2.5 AbstractNioMessageServerChannel源码分析
+### 16.2.7 NioServerSocketChannel源码分析
+### 16.2.8 NioSocketChannel源码分析
+
