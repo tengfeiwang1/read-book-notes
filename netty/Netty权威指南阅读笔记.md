@@ -356,4 +356,28 @@ P342
 ### 16.2.5 AbstractNioMessageServerChannel源码分析
 ### 16.2.7 NioServerSocketChannel源码分析
 ### 16.2.8 NioSocketChannel源码分析
+P360
+1. 连接操作
 
+2. 写半包
+P363
+3. 读写操作
+
+## 16.3 Unsave功能说明
+  Unsafe接口实际上是Channel接口的辅助接口，它不应该被用户代码直接调用。实际的I/O读写操作都是由Unsafe接口负责完成的。
+
+## 16.4 Unsafe源码分析
+
+### 16.4.2 AbstractUnsafe源码分析
+P367
+1.  register方法
+2.  bind方法
+3.  disconnect方法
+4.  close方法
+5.  write方法
+  write方法实际上将消息添加到环形发送数组中，并不是真正的写Channel。
+6.  flush方法
+  flush方法负责将发送缓冲区中待发送的消息全部写到Channel中，并发送给通信方。
+
+### 16.4.3 AbstractNioUnsafe源码分析
+AbstractNioUnsafe是AbstractUnsafe类的NIO实现，它主要实现了connect、finishConnect等方法。
