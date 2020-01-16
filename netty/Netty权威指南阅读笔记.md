@@ -381,3 +381,11 @@ P367
 
 ### 16.4.3 AbstractNioUnsafe源码分析
 AbstractNioUnsafe是AbstractUnsafe类的NIO实现，它主要实现了connect、finishConnect等方法。
+
+### 16.4.4 NioByteUnsafe源码分析
+  重点关注read方法；
+
+  AdaptiveRecvByteBufAllocator值的是缓冲区大小可以动态调整的ByteBuf分配器。内部类HandleImpl---record(),实现了动态扩容的逻辑。
+
+# 第17章 ChannelPipeline和ChannelHandler
+Netty的ChannelPipeline和ChannelHandler
