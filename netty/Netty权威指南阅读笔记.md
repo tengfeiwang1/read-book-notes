@@ -529,3 +529,29 @@ P429
 tip :
 1. Selector会触发JDK的epoll bug，通过计数空轮询count来判断是否重建rebuildSelector解决；
 2. NioEventLoop线程池处理I/O时间和非I/O任务的队列维护P437
+
+# 第19章 Future和Promise
+## 19.1 Future功能
+  Future最早来源怒JDK的java.util.concurrent.Future。
+
+- ChannelFuture功能
+  由于Netty的Future都是与异步I/O操作相关的，因此，命名为ChannelFuture，代表它与Channel操作相关。
+  
+  ChannelFuture有两种状态：uncompleted和completed；ChannelFuture的状态迁移图如图：
+  ![ChannelFuture状态迁移](./nettypic/ChannelFuture状态迁移.jpg)\
+  
+  Netty强烈建议直接通过添加监听器的方式获取I/O操作结果，或者进行后续的相关操作。推荐通过GenericFutureListener代替ChannelFuture的get等方法的原因是：当我们进行异步I/O操作时，完成的时间是无法预测的，如果不设置超时时间，它会导致调用线程长时间被阻塞，甚至挂死。而设置超时时间，时间又无法精确预测。利用异步通知机制回调GenericFutureListener是最佳的解决方案，他的性能最优。
+
+  异步I/O操作有两类超时:一个是TCP层面的I/O超时，另一个是业务逻辑层面的操作超时。
+
+## 19.2 ChannelFuture源码分析
+
+## 19.3 Promise功能介绍
+  **Promise是可写的Future，Future自身并没有写操作相关的接口，Netty通过Promise对Future进行扩展，用于设置I/O操作的结果。**
+
+  Netty发起I/O操作的时候，会创建一个新的Promise对象，例如调用ChannelHandlerContext的write(Object object)方法时，会创建一个新的ChannelPromise,在I/O操纵发生异常或者完成时，设置Promise的结果。
+
+## 19.4 Promise源码分析
+### 19.4.1 Promise继承关系图
+
+### 19.4.2 DefaultPromise
