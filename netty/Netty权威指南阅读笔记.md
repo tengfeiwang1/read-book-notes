@@ -473,3 +473,59 @@ P413
 ### 17.4.7 LengthFieldPrepender源码分析
   LengthFieldPrepender负责在待发送的ByteBuf消息头中增加一个长度字段来标识消息的长度，它简化了用户的编码器开发，使用户不需要额外去设置这个长度字段。
 
+# 第18章 EventLoop和EventLoopGroup
+## 18.1 Netty的线程模型
+### 18.1.1 Reactor单线程模型
+  Reactor单线程模型，是指所有的I/O操作都在同一个NIO线程上面完成。NIO线程的职责如下：
+  - 作为NIO服务端，接收客户端的TCP连接；
+  - 作为NIO客户端，向服务端发起TCP连接；
+  - 读取通信对端的请求或者应答消息；
+  - 向通信对端发送消息请求或者应答消息。
+  
+  Reactor单线程模型如图所示：
+![Reactor单线程模型](./nettypic/Reactor单线程模型.jpg)\
+
+  由于Reactor模式使用的是异步非阻塞I/O,所有的I/O操作都不会导致阻塞，理论上一个线程可以独立处理都有I/O相关的操作。从架构层面看，一个NIO线程确实可以完成其承担的职责。
+
+### 18.1.2 Reactor多线程模型
+  Reactor多线程模型与单线程模型最大的区别就是有一组NIO线程来处理I/O操作，如图：
+  ![Reactor多线程模型](./nettypic/Reactor多线程模型.jpg)\
+  Reactor多线程模型的特点如下：
+  - 有专门一个NIO线程---Acceptor线程用于监听服务端，接收客户端的TCP连接请求；
+  - 网络I/O操作---读、写等由一个NIO线程池负责，线程池可以采用标准的JDK线程池实现，它包含一个任务队列和N个可用的线程，由这些NIO线程负责消息的读取、编码、解码和发送。
+  - 一个NIO线程可以同时处理N条链路，但是一个链路只对应一个NIO线程，防止发生并发操作问题。
+
+### 18.1.3 主从Reactor多线程模型
+  主从Reactor多线程模型的特点是：服务端用于接收客户端连接的不再是一个单独的NIO线程，而是一个独立的NIO线程池。Acceptor接收到客户端TCP连接请求并处理完成后（可能包含接入认证等），将新创建的SocketChannel注册到I/O线程池（sub reactor线程池）的某个I/O线程上，由它负责SocketChannel的读写和编解码工作。Acceptor线程池仅仅用户客户端的登录、握手和安全认证，一旦链路建立成功，就将链路注册到后端subReactor线程池的I/O线程上，由I/O线程负责后续的I/O操作。如图：
+  ![主从Reactor多线程模型](./nettypic/主从Reactor多线程模型.jpg)
+
+### 18.1.4 Netty的线程模型
+  Netty的线程模型并不是一成不变的，它实际取决于用户的启动参数配置。通过设置不同的启动参数，Netty可以同时支持Reactor单线程模型、多线程模型和主从Reactor多线程模型。Netty的线程模型如图：
+  ![Netty线程模型](./nettypic/Netty线程模型.jpg)\
+  服务端启动的时候，创建了两个NioEventLoopGroup，它们实际是两个独立的Reactor线程池。一个用于接收客户端的TCP连接，另一个用于处理I/O相关的读写操作，或者执行系统Task、定时任务Task等。
+
+### 18.1.5 最佳实践
+  Netty的多线程编程最佳实践如下：
+  1. 创建两个NioEventLoopGroup，用于逻辑隔离NIO Acceptor和NIO I/O线程；
+  2. 尽量不要再ChannelHandler中启动用户线程（解码后用于将POJO消息派发到后端业务线程的除外）；
+  3. 解码要放在NIO线程调用的解码Handler中进行，不要切换到用户线程中完成消息的解码；
+  4. 如果业务逻辑操作非常简单， 没有复杂的业务逻辑计算，没有可能会导致线程被阻塞的磁盘操作、数据库操作、网络操作等，可以直接再NIO线程上完成业务逻辑编排，不需要切换到用户线程；
+  5. 如果业务线程处理复杂，不要在NIO线程上完成，建议将解码后的POJO消息封装成Task，派发到业务线程池中由业务线程执行，以保证NIO线程尽快被释放，处理其他的I/O操作。
+   
+  推荐的线程数量计算公式有以下两种：
+  - 公式一：线程数量=（线程总时间/瓶颈资源时间）*瓶颈资源的线程并行数；
+  - 公式二：QPS=10000/线程总时间*线程数。
+
+## 18.2 NioEventLoop源码分析
+### 18.2.1 NioEventLoop设计原理
+  Netyy的NioEventLoop并不是一个纯粹的I/O线程，它除了负责I/O的读写之前，还兼顾处理以下两类任务：
+  - 系统Task；
+  - 定时任务：
+
+### 18.2.2 NioEventLoop继承关系类图
+### 18.2.3 NioEventLoop源码
+P429
+
+tip :
+1. Selector会触发JDK的epoll bug，通过计数空轮询count来判断是否重建rebuildSelector解决；
+2. NioEventLoop线程池处理I/O时间和非I/O任务的队列维护P437
