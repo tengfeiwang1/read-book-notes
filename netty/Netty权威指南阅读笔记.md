@@ -388,4 +388,88 @@ AbstractNioUnsafe是AbstractUnsafe类的NIO实现，它主要实现了connect、
   AdaptiveRecvByteBufAllocator值的是缓冲区大小可以动态调整的ByteBuf分配器。内部类HandleImpl---record(),实现了动态扩容的逻辑。
 
 # 第17章 ChannelPipeline和ChannelHandler
-Netty的ChannelPipeline和ChannelHandler
+Netty的ChannelPipeline和ChannelHandler机制类似于Servlet和Filter过滤器，这类拦截器实际上是职责链模式的一种变形，主要是为了方便事件的拦截和用户业务逻辑的定制。
+
+## 17.1 ChannelPipeline功能说明
+ChannelPipeline是ChannelHandler的容器，它负责ChannelHandler的管理和事件拦截与调度。
+
+### 17.1.1 ChannelPipeline的事件处理
+![ChannelPipeline对事件流的拦截和处理流程](./nettypic/ChannelPipeline对事件流的拦截和处理流程.jpg)
+Netty 中的事件分为inbound事件和outbound事件。
+inbound事件通常由I/O线程触发，例如TCP链路建立事件、链路关闭事件、读事件、异常通知事件等。它对应图17-1的左半部分。
+
+
+Outbound事件通常是由用户主动发起的网络I/O操作，例如用户发起的连接操作、绑定操作、消息发送等操作。
+
+### 17.1.2 自定义拦截器
+通常ChannelHandler只需要继承ChannelHandlerAdapter类覆盖自己关系的方法即可。
+
+### 17.1.3 构建pipeline
+事实上用户不需要自己创建pipeline，因为使用ServerBootstrap和Bootstrap启动服务端或者客户端时，Netty会为每个Channel连接创建一个独立的pipline。对于使用者而言，只需要将自定义的拦截器加入到pipeline中即可。
+
+  对于类似于编解码这样的ChannelHandler，它存在先后顺序，例如MessageToMessageDecoder，在它之前往往需要有ByteToMessageDecoder将ByteBuf解码为对象，然后对对象做二次解码得到最终的POJO对象。
+
+### 17.1.4 ChannelPipeline的主要特性
+ChannelPipeline支持运行态动态的添加或者删除ChannelHandler，例如在业务高峰期需要对系统做拥塞保护时。
+ChannelPipeline是线程安全的，但是ChannelHandler却不是线程安全的。
+
+## 17.2 ChannelPipeline源码分析
+  ChannelPipeline的代码相对比较简单，它实际上是一个ChannelHandler的容器，内部维护了一个ChannelHandler的链表和迭代器。
+
+### 17.2.3 ChannelPipeline的inbound事件
+  由于网络I/O相关的事件有限，因此Netty对这些事件进行了统一抽象，Netty自身和用户的ChannelHandler会对感兴趣的事件进行拦截和处理。
+
+  **pipeline中以fireXXX命名的方法都是从IO线程流向用户业务Handler的inbound事件**。
+
+### 17.2.4 ChannelPipeline的outbound事件
+  由用户线程或者代码发起的I/O操作被称为outbound事件。
+  
+  Pipeline本身并不直接进行I/O操作，在前面对Channel和Unsafe的介绍中我们指定最终都是由Unsafe和Channel来实现真正的I/O操作的。Pipeline负责将I/O事件通过TailHandler进行调度和传播，最终调用Unsafe的I/O方法进行I/O操作。
+
+## 17.3 ChannelHandler功能说明
+  ChannelHandler类似于Servlet的Filter过滤器，负责对I/O事件或者I/O操作进行拦截和处理，它可以选择性地拦截和处理自己感兴趣的事件，也可以透传和终止事件的传递。
+
+### 17.3.1 ChannelHandlerAdapter功能说明
+
+### 17.3.3 MessageToMessageDecoder功能说明
+  MessageToMessageDecoder实际上是Netty的二次解码器，它的职责是将一个对象二次解码为其它对象。
+
+### 17.3.3 LengthFieldBasedFrameDecoder功能说明
+  前面介绍了Netty提供的半包解码器LineBasedFrameDecoder和DelimiterBasedFrameDecoder，最通用的半包解码器---LengthFieldBasedFrameDecoder：
+
+  如何区分一个整包消息，通常有如下4种做法：
+  - 固定长度；
+  - 通过回车换行符区分消息；
+  - 通过分隔符区分整包消息；
+  - 通过指定长度来标识整包消息。
+  如果消息是通过长度进行区分的，LengthFieldBasedFrameDecoder都可以自动处理粘包和半包问题，只需要传入正确的参数，即可轻松搞定"读半包"问题。
+P402
+  
+  由于TCP存在粘包和组包问题，所以**通常情况下必须自己处理半包消息**。利用LengthFieldBasedFrameDecoder解码器可以**自动解决半包问题**，通常做法如下：
+  ```
+  pipeline.addLast("frameDecoder",new LengthFieldBasedFrameDecoder(1024,0,4));
+  ```
+### 17.3.5 MessageToByteEncoder功能说明
+  MessageToByteEncoder负责将POJO对象解码成ByteBuf。
+
+### 17.3.5 MessageToMessageEncoder功能说明
+  将一个POJO对象编码成另一个对象。
+
+## 17.4 ChannelHandler源码分析
+### 17.4.1 ChannelHandler的类继承关系图
+
+  由于ChannelHandler是Netty框架和用户代码的主要扩展和定制点，所以它子类种类繁多、功能各异，系统ChannelHandler主要分类如下：
+  - ChannelPipeline的系统ChannelHandler，用于I/O操作和对事件进行预处理，对于用户不可见，这类ChannelHandler主要包括HeadHandler和TailHandler；
+  - 编解码ChannelHandler，包括ByteToMessageCodec,MessageToMessageDecoder等；
+  - 其它系统功能性ChannelHandler，包括流量整形Handler，读写超时Handler，日志Handler等；
+
+### 17.4.2 ByteToMessageDecoder源码分析
+P408
+### 17.4.3 MessageToMessageDecoder源码分析
+### 17.4.4 LengthFieldBasedFrameDecoder源码分析
+P413
+### 17.4.5 MessageToByteEncoder源码分析
+
+### 17.4.7 LengthFieldPrepender源码分析
+  LengthFieldPrepender负责在待发送的ByteBuf消息头中增加一个长度字段来标识消息的长度，它简化了用户的编码器开发，使用户不需要额外去设置这个长度字段。
+
