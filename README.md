@@ -1,5 +1,6 @@
 # read-book-notes
 log the notes by reading books
+记录电子书和读书笔记
 
 2020-01-13
 新增Netty权威指南，完成19年的读书任务。
