@@ -263,14 +263,14 @@ ByteBuf的discardReadBytes操作效果如下：
 6. clear操作
 
 正如JDK ByteBuffer的clear操作,它并不会清空缓冲区内容本身，例如填充为NULL(0x00).它主要用来操作位置指针。
-7. Mark和Rest
+7. Mark和Rest \
   对于JDK的ByteBuffer，调用mark操作会将当前的位置指针备份到mark变量中，当调用rest操作之后，重新将指针的当前位置恢复为备份在mark中的值。
   
-  Netty的ByteBuf也有类似的rest和mark接口，因为ByteBuf有读索引和写索引，因此，它总共有4个相关方法：
-markReaderIndex：将当前的readerIndex备份到markedReaderIndex中；
-restReaderIndex：将当前的readerIndex设置为markedReaderIndex中；
-markWriterIndex：将当前的writerIndex备份到markedWriterIndex中；
-restReaderIndex：将当前的writerIndex设置为markedWriterIndex中；
+  Netty的ByteBuf也有类似的rest和mark接口，因为ByteBuf有读索引和写索引，因此，它总共有4个相关方法：\
+markReaderIndex：将当前的readerIndex备份到markedReaderIndex中；\
+restReaderIndex：将当前的readerIndex设置为markedReaderIndex中；\
+markWriterIndex：将当前的writerIndex备份到markedWriterIndex中；\
+restWriterIndex：将当前的writerIndex设置为markedWriterIndex中；\
 
 8. 查找操作
    ByteBuf提供了多种查找方法：P307
